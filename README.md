@@ -13,6 +13,8 @@ Client-side fraud detection tool for Rakuten RMS CSV data with IP analysis, dupl
 * データは外部に送信されません（※IP国判定のみ例外あり）
 * インストール不要、HTMLファイルを開くだけで動作
 * 非エンジニアでも使えるUI設計
+* IPの国判定には外部APIを使用しています。
+利用状況によっては制限がかかる場合があります。
 
 ---
 
