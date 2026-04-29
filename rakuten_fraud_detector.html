@@ -1,0 +1,844 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>楽天RMS 不正検知ツール</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #0d1117;
+  color: #e6edf3;
+  font-family: 'Helvetica Neue', Arial, 'Hiragino Kaku Gothic ProN', Meiryo, sans-serif;
+  font-size: 14px;
+  line-height: 1.6;
+}
+#header {
+  background: #161b22;
+  border-bottom: 1px solid #30363d;
+  padding: 0 20px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+#header .logo { font-size: 15px; font-weight: 700; }
+#header .logo em { color: #f85149; font-style: normal; }
+.green-pill {
+  background: #0d2114;
+  border: 1px solid #1a4928;
+  color: #3fb950;
+  font-size: 11px;
+  padding: 3px 10px;
+  border-radius: 20px;
+}
+#main { padding: 20px; max-width: 1400px; margin: 0 auto; }
+#notice {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-left: 3px solid #58a6ff;
+  padding: 10px 14px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  font-size: 12px;
+  color: #8b949e;
+}
+#notice b { color: #58a6ff; }
+#drop {
+  border: 2px dashed #484f58;
+  border-radius: 12px;
+  padding: 50px 20px;
+  text-align: center;
+  background: #161b22;
+  margin-bottom: 20px;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+#drop.over { border-color: #58a6ff; background: rgba(88,166,255,.06); }
+#drop h2 { font-size: 17px; margin-bottom: 8px; }
+#drop p { font-size: 12px; color: #8b949e; }
+#fileInput { display: none; }
+#demoBtn {
+  margin-top: 16px;
+  font-size: 11px;
+  color: #6e7681;
+  background: none;
+  border: 1px dashed #30363d;
+  padding: 5px 14px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+#demoBtn:hover { color: #8b949e; border-color: #484f58; }
+#debugBox {
+  background: #1a0a0a;
+  border: 1px solid #6e1e1c;
+  border-radius: 6px;
+  padding: 10px 14px;
+  margin-bottom: 16px;
+  font-size: 11px;
+  font-family: monospace;
+  color: #f85149;
+  display: none;
+  white-space: pre-wrap;
+  max-height: 120px;
+  overflow-y: auto;
+}
+#stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 16px;
+  display: none;
+}
+.scard {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 12px 16px;
+}
+.scard .lbl { font-size: 11px; color: #6e7681; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.scard .val { font-size: 28px; font-weight: 700; }
+.danger-val { color: #f85149; }
+.warning-val { color: #e3b341; }
+.safe-val { color: #58a6ff; }
+#toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+  gap: 8px;
+  display: none;
+}
+.tabs {
+  display: flex;
+  gap: 3px;
+  background: #21262d;
+  border: 1px solid #30363d;
+  border-radius: 8px;
+  padding: 3px;
+}
+.tab-btn {
+  padding: 5px 12px;
+  border-radius: 5px;
+  border: none;
+  background: transparent;
+  color: #8b949e;
+  font-size: 12px;
+  cursor: pointer;
+}
+.tab-btn.active {
+  background: #161b22;
+  color: #e6edf3;
+  border: 1px solid #30363d;
+}
+.action-btns { display: flex; gap: 8px; }
+.btn {
+  background: #21262d;
+  border: 1px solid #30363d;
+  color: #8b949e;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  cursor: pointer;
+}
+.btn:hover { color: #e6edf3; border-color: #484f58; }
+#tableWrap {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 10px;
+  overflow: hidden;
+  overflow-x: auto;
+  display: none;
+}
+#ipProgressBar {
+  display: none;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 14px;
+  background: #21262d;
+  border-bottom: 1px solid #30363d;
+  font-size: 11px;
+  color: #6e7681;
+}
+.pbar { flex: 1; height: 2px; background: #30363d; border-radius: 2px; overflow: hidden; }
+.pfill { height: 100%; background: #58a6ff; border-radius: 2px; transition: width .3s; width: 0%; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; min-width: 820px; }
+thead { background: #21262d; border-bottom: 1px solid #30363d; }
+th { padding: 9px 12px; text-align: left; font-size: 11px; color: #6e7681; text-transform: uppercase; letter-spacing: .5px; font-weight: 400; white-space: nowrap; }
+td { padding: 9px 12px; border-bottom: 1px solid #30363d; vertical-align: middle; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,.02); }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.badge-danger { background: #2d0f0e; border: 1px solid #6e1e1c; color: #f85149; }
+.badge-warning { background: #2d2208; border: 1px solid #6e4e09; color: #e3b341; }
+.badge-safe { background: #0d2540; border: 1px solid #1f4e8c; color: #58a6ff; }
+.dot { width: 6px; height: 6px; border-radius: 50%; flex-shrink: 0; }
+.dot-danger { background: #f85149; }
+.dot-warning { background: #e3b341; }
+.reasons { display: flex; flex-wrap: wrap; gap: 3px; }
+.rtag {
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: 1px solid;
+  white-space: nowrap;
+}
+.rtag-d { background: #2d0f0e; border-color: #6e1e1c; color: #f85149; }
+.rtag-w { background: #2d2208; border-color: #6e4e09; color: #e3b341; }
+.ip-link { color: #58a6ff; font-size: 12px; text-decoration: none; font-family: monospace; }
+.ip-link:hover { text-decoration: underline; }
+.dup-tag { font-size: 10px; background: #2d0f0e; border: 1px solid #6e1e1c; color: #f85149; padding: 1px 5px; border-radius: 3px; margin-left: 4px; }
+.mono { font-family: monospace; font-size: 12px; color: #8b949e; }
+.em-sus { color: #e3b341 !important; }
+.spin { width: 10px; height: 10px; border: 2px solid #484f58; border-top-color: #58a6ff; border-radius: 50%; animation: spin .8s linear infinite; display: inline-block; flex-shrink: 0; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.copy-btn { background: transparent; border: 1px solid #30363d; color: #6e7681; padding: 3px 8px; border-radius: 4px; font-size: 10px; cursor: pointer; }
+.copy-btn:hover { border-color: #58a6ff; color: #58a6ff; }
+.copy-btn.ok { border-color: #3fb950; color: #3fb950; }
+.muted { color: #6e7681; }
+#toast {
+  position: fixed;
+  bottom: 20px;
+  right: 20px;
+  background: #21262d;
+  border: 1px solid #484f58;
+  color: #e6edf3;
+  padding: 9px 14px;
+  border-radius: 8px;
+  font-size: 12px;
+  z-index: 9999;
+  opacity: 0;
+  transition: opacity .2s;
+  pointer-events: none;
+}
+#toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<div id="header">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div class="logo"><em>楽天</em> FRAUD DETECTOR</div>
+    <span class="green-pill">ローカル処理のみ</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span style="font-size:11px;color:#6e7681">PCに保存してChromeで開いて使用</span>
+    <button id="dlBtn" title="このツールをダウンロード" style="display:flex;align-items:center;justify-content:center;width:32px;height:32px;background:#238636;border:1px solid #2ea043;color:#fff;border-radius:6px;cursor:pointer;flex-shrink:0" onmouseover="this.style.background='#2ea043'" onmouseout="this.style.background='#238636'">
+      <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor"><path d="M2.75 14A1.75 1.75 0 0 1 1 12.25v-2.5a.75.75 0 0 1 1.5 0v2.5c0 .138.112.25.25.25h10.5a.25.25 0 0 0 .25-.25v-2.5a.75.75 0 0 1 1.5 0v2.5A1.75 1.75 0 0 1 13.25 14Z"/><path d="M7.25 7.689V2a.75.75 0 0 1 1.5 0v5.689l1.97-1.97a.749.749 0 1 1 1.06 1.06l-3.25 3.25a.749.749 0 0 1-1.06 0L4.22 6.779a.749.749 0 1 1 1.06-1.06l1.97 1.97Z"/></svg>
+    </button>
+  </div>
+</div>
+<div id="warningBar" style="background:#2d2208;border-bottom:1px solid #6e4e09;padding:6px 20px;font-size:11px;color:#e3b341;display:flex;align-items:center;gap:6px">
+  <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor"><path d="M6.457 1.047c.659-1.234 2.427-1.234 3.086 0l6.082 11.378A1.75 1.75 0 0 1 14.082 15H1.918a1.75 1.75 0 0 1-1.543-2.575Zm1.763.707a.25.25 0 0 0-.44 0L1.698 13.132a.25.25 0 0 0 .22.368h12.164a.25.25 0 0 0 .22-.368Zm.53 3.996v2.5a.75.75 0 0 1-1.5 0v-2.5a.75.75 0 0 1 1.5 0ZM9 11a1 1 0 1 1-2 0 1 1 0 0 1 2 0Z"/></svg>
+  <span style="flex:1">※ このツールはダウンロードして、必ずブラウザ（Chrome推奨）で開いて使用してください。クラウド上やメールの添付から直接開いた場合は正しく動作しません。</span>
+  <button onclick="document.getElementById('warningBar').style.display='none'" title="閉じる" style="background:none;border:none;color:#e3b341;cursor:pointer;font-size:14px;line-height:1;padding:0 0 0 8px;opacity:.7" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='.7'">✕</button>
+</div>
+
+<div id="main">
+  <div id="notice">
+    🔒 <b>データは外部送信されません。このブラウザ内だけで完結します。</b>
+    &nbsp;例外：IPアドレスの国名判定のみ ip-api.com/batch を使用（個人情報は含みません）。
+  </div>
+
+  <div id="debugBox"></div>
+
+  <div id="drop">
+    <input type="file" id="fileInput" accept=".csv">
+    <div style="font-size:36px;margin-bottom:12px">📂</div>
+    <h2>楽天RMS 受注CSVをここにドロップ</h2>
+    <p>またはクリックしてファイルを選択 &nbsp;|&nbsp; Shift-JIS / UTF-8 対応</p>
+    <button id="demoBtn">▶ サンプルデータで試す</button>
+  </div>
+
+  <div id="stats">
+    <div class="scard"><div class="lbl">総注文数</div><div class="val" id="cTotal">0</div></div>
+    <div class="scard"><div class="lbl">危険</div><div class="val danger-val" id="cDanger">0</div></div>
+    <div class="scard"><div class="lbl">要注意</div><div class="val warning-val" id="cWarning">0</div></div>
+    <div class="scard"><div class="lbl">正常</div><div class="val safe-val" id="cSafe">0</div></div>
+  </div>
+
+  <div id="toolbar">
+    <div class="tabs">
+      <button class="tab-btn active" id="tabAll" onclick="setFilter('all',this)">すべて <span id="tAll">0</span></button>
+      <button class="tab-btn" onclick="setFilter('danger',this)">🔴 危険 <span id="tDanger">0</span></button>
+      <button class="tab-btn" onclick="setFilter('warning',this)">🟡 要注意 <span id="tWarning">0</span></button>
+      <button class="tab-btn" onclick="setFilter('safe',this)">🔵 正常 <span id="tSafe">0</span></button>
+    </div>
+    <div class="action-btns">
+      <button class="btn" onclick="copyDanger()">🗋 危険リストをコピー</button>
+      <button class="btn" onclick="resetAll()">↺ リセット</button>
+    </div>
+  </div>
+
+  <div id="tableWrap">
+    <div id="ipProgressBar">
+      <span class="spin"></span>
+      <span id="ipText">IP国名を取得中...</span>
+      <div class="pbar"><div class="pfill" id="pfill"></div></div>
+    </div>
+    <table>
+      <thead>
+        <tr>
+          <th>状態</th>
+          <th>注文番号</th>
+          <th>注文者名</th>
+          <th>注文時間</th>
+          <th>メールアドレス</th>
+          <th>IPアドレス</th>
+          <th>国名</th>
+          <th>判定理由</th>
+          <th>操作</th>
+        </tr>
+      </thead>
+      <tbody id="tbody"></tbody>
+    </table>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+window.addEventListener('DOMContentLoaded', function() {
+
+  // ---- デバッグログ ----
+  function dbg(msg) {
+    var box = document.getElementById('debugBox');
+    box.style.display = 'block';
+    box.textContent += msg + '\n';
+  }
+  function dbgClear() {
+    var box = document.getElementById('debugBox');
+    box.style.display = 'none';
+    box.textContent = '';
+  }
+
+  // ---- トースト ----
+  function toast(msg) {
+    var el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'show';
+    setTimeout(function(){ el.className = ''; }, 2500);
+  }
+
+  // ---- 文字コード自動判定 ----
+  function decode(uint8) {
+    // UTF-8 BOM
+    if (uint8[0] === 0xEF && uint8[1] === 0xBB && uint8[2] === 0xBF) {
+      return new TextDecoder('utf-8').decode(uint8.slice(3));
+    }
+    // Shift-JIS スコアリング
+    var sjis = 0, utf8 = 0;
+    var limit = Math.min(uint8.length - 2, 4000);
+    for (var i = 0; i < limit; i++) {
+      var b = uint8[i];
+      if ((b >= 0x81 && b <= 0x9F) || (b >= 0xE0 && b <= 0xFC)) {
+        var b2 = uint8[i+1];
+        if (b2 >= 0x40 && b2 <= 0xFC && b2 !== 0x7F) { sjis += 2; i++; continue; }
+      }
+      if (b >= 0xC2 && b <= 0xDF && uint8[i+1] >= 0x80 && uint8[i+1] <= 0xBF) { utf8++; i++; }
+    }
+    if (sjis > utf8) {
+      try { return new TextDecoder('shift-jis').decode(uint8); } catch(e) {}
+      try { return new TextDecoder('x-sjis').decode(uint8); } catch(e) {}
+    }
+    return new TextDecoder('utf-8').decode(uint8);
+  }
+
+  // ---- CSVパーサー ----
+  function parseCSV(text) {
+    text = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    var lines = text.split('\n');
+    var nonEmpty = lines.filter(function(l){ return l.trim() !== ''; });
+    if (nonEmpty.length < 2) return { fields: [], rows: [] };
+
+    function splitLine(line) {
+      var cols = [], cur = '', inQ = false;
+      for (var i = 0; i < line.length; i++) {
+        var c = line[i];
+        if (c === '"') {
+          if (inQ && line[i+1] === '"') { cur += '"'; i++; }
+          else { inQ = !inQ; }
+        } else if (c === ',' && !inQ) {
+          cols.push(cur.trim()); cur = '';
+        } else {
+          cur += c;
+        }
+      }
+      cols.push(cur.trim());
+      return cols;
+    }
+
+    var fields = splitLine(nonEmpty[0]);
+    var rows = [];
+    for (var j = 1; j < nonEmpty.length; j++) {
+      var vals = splitLine(nonEmpty[j]);
+      var obj = {};
+      for (var k = 0; k < fields.length; k++) {
+        obj[fields[k]] = vals[k] !== undefined ? vals[k] : '';
+      }
+      rows.push(obj);
+    }
+    return { fields: fields, rows: rows };
+  }
+
+  // ---- カラム名検索 ----
+  var COL = {
+    num:   ['注文番号','受付番号','受注番号','order_id','注文ID'],
+    name:  ['注文者名','氏名','名前','購入者名','お名前','customer_name'],
+    email: ['メールアドレス','メール','e-mail','email','mail'],
+    ip:    ['IPアドレス','IP','ip_address','ip address','接続IP','注文者IP'],
+    time:  ['注文時間','注文日時','受注日時','受付日時','購入日時','order_time','datetime','注文日']
+  };
+  function findCol(fields, cands) {
+    for (var i = 0; i < fields.length; i++) {
+      var f = fields[i].trim().toLowerCase();
+      for (var j = 0; j < cands.length; j++) {
+        if (f.indexOf(cands[j].toLowerCase()) !== -1) return fields[i];
+      }
+    }
+    return null;
+  }
+
+  // ---- 時刻パーサー ----
+  function parseHour(str) {
+    // "2024/01/15 02:30" / "2024-01-15 02:30:00" / "02:30" 等に対応
+    var m = str.match(/(\d{1,2}):(\d{2})/);
+    if (m) return parseInt(m[1], 10);
+    return null;
+  }
+
+  // ---- ランダムメール判定 ----
+  function isRandom(email) {
+    if (!email || email.indexOf('@') === -1) return false;
+    var local = email.split('@')[0];
+    if (local.length < 7) return false;
+    var nums = (local.match(/\d/g) || []).length / local.length;
+    var novowel = local.replace(/[aeiouAEIOU]/g, '').length / local.length;
+    return (nums > 0.3 && novowel > 0.72) || (/^[a-z0-9]{8,}$/.test(local) && nums > 0.35);
+  }
+
+  // ---- HTML エスケープ ----
+  function esc(s) {
+    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ---- アプリ状態 ----
+  var allRows = [];
+  var ipMap = {};
+  var dupIPs = {};
+  var currentFilter = 'all';
+
+  // ---- UI 表示切替 ----
+  function showResults() {
+    document.getElementById('drop').style.display = 'none';
+    document.getElementById('stats').style.display = 'grid';
+    document.getElementById('toolbar').style.display = 'flex';
+    document.getElementById('tableWrap').style.display = 'block';
+  }
+  function resetAll() {
+    allRows = []; ipMap = {}; dupIPs = {}; currentFilter = 'all';
+    document.getElementById('drop').style.display = 'block';
+    document.getElementById('stats').style.display = 'none';
+    document.getElementById('toolbar').style.display = 'none';
+    document.getElementById('tableWrap').style.display = 'none';
+    document.getElementById('fileInput').value = '';
+    dbgClear();
+  }
+
+  // ---- 統計更新 ----
+  function updateStats() {
+    var t = allRows.length;
+    var d = allRows.filter(function(r){ return r.level === 'danger'; }).length;
+    var w = allRows.filter(function(r){ return r.level === 'warning'; }).length;
+    var s = allRows.filter(function(r){ return r.level === 'safe'; }).length;
+    document.getElementById('cTotal').textContent = t;
+    document.getElementById('cDanger').textContent = d;
+    document.getElementById('cWarning').textContent = w;
+    document.getElementById('cSafe').textContent = s;
+    document.getElementById('tAll').textContent = t;
+    document.getElementById('tDanger').textContent = d;
+    document.getElementById('tWarning').textContent = w;
+    document.getElementById('tSafe').textContent = s;
+  }
+
+  // ---- テーブル描画 ----
+  window.setFilter = function(f, btn) {
+    currentFilter = f;
+    var tabs = document.querySelectorAll('.tab-btn');
+    for (var i = 0; i < tabs.length; i++) tabs[i].classList.remove('active');
+    btn.classList.add('active');
+    renderTable();
+  };
+
+  function renderTable() {
+    var rows = currentFilter === 'all'
+      ? allRows
+      : allRows.filter(function(r){ return r.level === currentFilter; });
+
+    var tb = document.getElementById('tbody');
+    if (rows.length === 0) {
+      tb.innerHTML = '<tr><td colspan="9" style="text-align:center;padding:40px;color:#6e7681">該当なし</td></tr>';
+      return;
+    }
+
+    var html = '';
+    for (var i = 0; i < rows.length; i++) {
+      var row = rows[i];
+      var bCls = row.level === 'danger' ? 'badge-danger' : row.level === 'warning' ? 'badge-warning' : 'badge-safe';
+      var bLbl = row.level === 'danger' ? '危険' : row.level === 'warning' ? '要注意' : '正常';
+      var dCls = row.level === 'danger' ? 'dot-danger' : row.level === 'warning' ? 'dot-warning' : '';
+
+      var ipCell = row.ip
+        ? '<div style="display:flex;align-items:center;gap:5px"><a class="ip-link" href="https://www.cman.jp/network/support/go_access.cgi?ip=' + esc(row.ip) + '" target="_blank" rel="noopener">' + esc(row.ip) + '</a>' + (dupIPs[row.ip] ? '<span class="dup-tag">重複</span>' : '') + '</div>'
+        : '<span class="muted">—</span>';
+
+      var country = '<span class="muted">—</span>';
+      if (row.ip) {
+        if (ipMap[row.ip]) {
+          country = '<span style="font-size:15px">' + ipMap[row.ip].flag + '</span> <span style="font-size:11px;color:#6e7681">' + esc(ipMap[row.ip].country) + '</span>';
+        } else {
+          country = '<span class="spin"></span>';
+        }
+      }
+
+      var reasonHtml = row.reasons.length
+        ? row.reasons.map(function(r){ return '<span class="rtag ' + r.cls + '">' + r.text + '</span>'; }).join('')
+        : '<span class="muted" style="font-size:11px">—</span>';
+
+      var emailCls = isRandom(row.email) ? 'em-sus' : '';
+      var copyData = 'IP: ' + (row.ip || 'N/A') + ' | 判定: ' + (row.reasons.map(function(r){ return r.text; }).join(', ') || '正常') + ' | 注文者: ' + row.name;
+
+      html += '<tr>';
+      html += '<td><span class="badge ' + bCls + '"><span class="dot ' + dCls + '"></span>' + bLbl + '</span></td>';
+      html += '<td><span class="mono">' + esc(row.orderNum) + '</span></td>';
+      html += '<td style="max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-weight:500" title="' + esc(row.name) + '">' + esc(row.name) + '</td>';
+      // 時間セル
+      var timeDisp = '—';
+      var timeCls = '';
+      if (row.time) {
+        timeDisp = esc(row.time);
+        var h = parseHour(row.time);
+        if (h !== null && h >= 0 && h <= 4) timeCls = 'style="color:#e3b341;font-weight:600"';
+      }
+      html += '<td><span class="mono" ' + timeCls + ' style="font-size:11px">' + timeDisp + '</span></td>';
+      html += '<td><span class="mono ' + emailCls + '" style="font-size:11px;max-width:180px;display:inline-block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(row.email) + '">' + (esc(row.email) || '—') + '</span></td>';
+      html += '<td>' + ipCell + '</td>';
+      html += '<td>' + country + '</td>';
+      html += '<td><div class="reasons">' + reasonHtml + '</div></td>';
+      html += '<td><button class="copy-btn" onclick="doCopy(this,' + JSON.stringify(copyData) + ')">コピー</button></td>';
+      html += '</tr>';
+    }
+    tb.innerHTML = html;
+  }
+
+  // ---- コピー ----
+  window.doCopy = function(btn, text) {
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.cssText = 'position:fixed;top:-9999px;left:-9999px;opacity:0';
+      document.body.appendChild(ta);
+      ta.focus(); ta.select();
+      try { document.execCommand('copy'); btn.textContent = '✓ 完了'; btn.classList.add('ok'); setTimeout(function(){ btn.textContent = 'コピー'; btn.classList.remove('ok'); }, 2000); }
+      catch(e) { toast('コピー失敗'); }
+      document.body.removeChild(ta);
+    }
+    if (navigator.clipboard && window.location.protocol !== 'file:') {
+      navigator.clipboard.writeText(text).then(function(){ btn.textContent = '✓ 完了'; btn.classList.add('ok'); setTimeout(function(){ btn.textContent = 'コピー'; btn.classList.remove('ok'); }, 2000); }).catch(fallback);
+    } else {
+      fallback();
+    }
+  };
+
+  window.copyDanger = function() {
+    var rows = allRows.filter(function(r){ return r.level === 'danger'; });
+    if (!rows.length) { toast('危険判定の注文はありません'); return; }
+    var text = rows.map(function(r){ return '注文番号:' + r.orderNum + ' | 氏名:' + r.name + ' | IP:' + r.ip + ' | 判定:' + r.reasons.map(function(x){ return x.text; }).join(', '); }).join('\n');
+    window.doCopy({ textContent: '', classList: { add: function(){}, remove: function(){} } }, text);
+    toast(rows.length + '件をコピーしました');
+  };
+
+  window.resetAll = resetAll;
+
+  // ---- IP国名取得 ----
+  function flagEmoji(code) {
+    if (!code || code.length !== 2) return '🌐';
+    var pts = [];
+    for (var i = 0; i < code.length; i++) pts.push(0x1F1E0 + code.toUpperCase().charCodeAt(i) - 65);
+    return String.fromCodePoint(pts[0], pts[1]);
+  }
+
+  function fetchIPs() {
+    var ips = [];
+    var seen = {};
+    for (var i = 0; i < allRows.length; i++) {
+      var ip = allRows[i].ip;
+      if (ip && ip !== '-' && !seen[ip]) { ips.push(ip); seen[ip] = true; }
+    }
+    if (!ips.length) return;
+
+    var bar = document.getElementById('ipProgressBar');
+    bar.style.display = 'flex';
+    var done = 0;
+
+    function fetchChunk(chunk) {
+      return fetch('http://ip-api.com/batch?fields=query,country,countryCode,status', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(chunk.map(function(ip){ return { query: ip }; }))
+      })
+      .then(function(res){ return res.json(); })
+      .then(function(data) {
+        for (var i = 0; i < data.length; i++) {
+          var item = data[i];
+          ipMap[item.query] = {
+            country: item.status === 'success' ? item.country : '不明',
+            flag: flagEmoji(item.countryCode)
+          };
+          if (item.status === 'success' && item.countryCode !== 'JP') {
+            for (var j = 0; j < allRows.length; j++) {
+              if (allRows[j].ip === item.query) {
+                var already = false;
+                for (var k = 0; k < allRows[j].reasons.length; k++) {
+                  if (allRows[j].reasons[k].text.indexOf('海外IP') === 0) { already = true; break; }
+                }
+                if (!already) {
+                  allRows[j].reasons.push({ text: '海外IP(' + item.country + ')', cls: 'rtag-d' });
+                  allRows[j].level = 'danger';
+                }
+              }
+            }
+          }
+        }
+        done += chunk.length;
+        document.getElementById('pfill').style.width = Math.round(done / ips.length * 100) + '%';
+        document.getElementById('ipText').textContent = 'IP国名取得中... ' + done + '/' + ips.length;
+        updateStats();
+        renderTable();
+      })
+      .catch(function() {
+        for (var i = 0; i < chunk.length; i++) ipMap[chunk[i]] = { country: '取得失敗', flag: '❓' };
+        done += chunk.length;
+        updateStats(); renderTable();
+      });
+    }
+
+    var chain = Promise.resolve();
+    for (var i = 0; i < ips.length; i += 100) {
+      (function(chunk){
+        chain = chain.then(function(){ return fetchChunk(chunk); });
+      })(ips.slice(i, i + 100));
+    }
+    chain.then(function() {
+      bar.style.display = 'none';
+      toast(ips.length + '件のIPアドレスの国名を取得しました');
+    });
+  }
+
+  // ---- CSV処理本体 ----
+  function processCSV(text) {
+    dbgClear();
+    var result = parseCSV(text);
+    dbg('フィールド数: ' + result.fields.length + ' / 行数: ' + result.rows.length);
+    dbg('フィールド名: ' + result.fields.join(' | '));
+
+    if (!result.rows.length) {
+      toast('データが読み込めませんでした');
+      dbg('エラー: データ行なし');
+      return;
+    }
+
+    var cO = findCol(result.fields, COL.num);
+    var cN = findCol(result.fields, COL.name);
+    var cE = findCol(result.fields, COL.email);
+    var cI = findCol(result.fields, COL.ip);
+    var cT = findCol(result.fields, COL.time);
+    dbg('注文番号列: ' + cO + ' / 氏名列: ' + cN + ' / メール列: ' + cE + ' / IP列: ' + cI + ' / 時間列: ' + cT);
+
+    // IP重複チェック
+    var ipOwners = {};
+    for (var i = 0; i < result.rows.length; i++) {
+      var ip = cI ? (result.rows[i][cI] || '').trim() : '';
+      var nm = cN ? (result.rows[i][cN] || '').trim() : '';
+      if (ip && ip !== '-') {
+        if (!ipOwners[ip]) ipOwners[ip] = [];
+        if (ipOwners[ip].indexOf(nm) === -1) ipOwners[ip].push(nm);
+      }
+    }
+    dupIPs = {};
+    var keys = Object.keys(ipOwners);
+    for (var k = 0; k < keys.length; k++) {
+      if (ipOwners[keys[k]].length > 1) dupIPs[keys[k]] = ipOwners[keys[k]];
+    }
+    dbg('IP重複: ' + Object.keys(dupIPs).length + '件');
+
+    // 時間重複チェック（同一時刻に複数注文）
+    var timeCounts = {};
+    if (cT) {
+      for (var i = 0; i < result.rows.length; i++) {
+        var t = (result.rows[i][cT] || '').trim();
+        if (t) { timeCounts[t] = (timeCounts[t] || 0) + 1; }
+      }
+    }
+
+    // 同一IPから短時間に複数注文チェック（同IP × 同日）
+    var ipDateCounts = {};
+    if (cT && cI) {
+      for (var i = 0; i < result.rows.length; i++) {
+        var ip2 = (result.rows[i][cI] || '').trim();
+        var td  = (result.rows[i][cT] || '').trim();
+        var dateKey = ip2 + '|' + td.slice(0, 10); // 日付部分だけ
+        if (ip2 && td) ipDateCounts[dateKey] = (ipDateCounts[dateKey] || 0) + 1;
+      }
+    }
+
+    allRows = [];
+    for (var i = 0; i < result.rows.length; i++) {
+      var row = result.rows[i];
+      var orderNum = (cO ? row[cO] : '') || ('ROW-' + (i + 1));
+      var name     = (cN ? row[cN] : '') || '不明';
+      var email    = (cE ? row[cE] : '') || '';
+      var ip       = (cI ? row[cI] : '') || '';
+      var timeStr  = (cT ? row[cT] : '') || '';
+      var reasons = [];
+      var level = 'safe';
+
+      // メール判定
+      if (!email || email.indexOf('@') === -1) {
+        reasons.push({ text: 'メール形式不正', cls: 'rtag-w' });
+        if (level === 'safe') level = 'warning';
+      } else if (isRandom(email)) {
+        reasons.push({ text: 'ランダムメール疑い', cls: 'rtag-w' });
+        if (level === 'safe') level = 'warning';
+      }
+
+      // IP重複
+      if (ip && dupIPs[ip]) {
+        reasons.push({ text: 'IP重複(' + dupIPs[ip].length + '名)', cls: 'rtag-d' });
+        level = 'danger';
+      }
+
+      // 時間ロジック
+      if (timeStr) {
+        var hour = parseHour(timeStr);
+        // 深夜早朝（0〜5時）
+        if (hour !== null && hour >= 0 && hour <= 4) {
+          reasons.push({ text: '深夜注文(' + hour + '時台)', cls: 'rtag-w' });
+          if (level === 'safe') level = 'warning';
+        }
+        // 同一時刻に複数注文
+        if (timeCounts[timeStr] && timeCounts[timeStr] >= 2) {
+          reasons.push({ text: '同時刻注文×' + timeCounts[timeStr], cls: 'rtag-d' });
+          level = 'danger';
+        }
+        // 同一IPで同日に複数注文
+        var dk = ip + '|' + timeStr.slice(0, 10);
+        if (ip && ipDateCounts[dk] && ipDateCounts[dk] >= 3) {
+          reasons.push({ text: '同日IP連続(' + ipDateCounts[dk] + '件)', cls: 'rtag-d' });
+          level = 'danger';
+        }
+      }
+
+      allRows.push({ orderNum: orderNum.trim(), name: name.trim(), email: email.trim(), ip: ip.trim(), time: timeStr, reasons: reasons, level: level });
+    }
+    dbg('処理完了: ' + allRows.length + '行 → 表示します');
+
+    showResults();
+    updateStats();
+    renderTable();
+    fetchIPs();
+
+    // デバッグ情報は3秒後に自動非表示
+    setTimeout(dbgClear, 3000);
+  }
+
+  // ---- ファイル読み込み ----
+  function handleFile(file) {
+    if (!file.name.match(/\.csv$/i)) { toast('CSVファイルを選択してください'); return; }
+    var reader = new FileReader();
+    reader.onload = function(ev) {
+      var uint8 = new Uint8Array(ev.target.result);
+      var text;
+      try { text = decode(uint8); }
+      catch(e) { text = new TextDecoder('utf-8').decode(uint8); }
+      processCSV(text);
+    };
+    reader.onerror = function() { toast('ファイルの読み込みに失敗しました'); };
+    reader.readAsArrayBuffer(file);
+  }
+
+  // ---- ダウンロードボタン ----
+  document.getElementById('dlBtn').addEventListener('click', function() {
+    var html = document.documentElement.outerHTML;
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'rakuten_fraud_detector.html';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('ダウンロードしました。Chromeで開いて使用してください。');
+  });
+
+  // ---- イベント登録 ----
+  var dropZone = document.getElementById('drop');
+  var fileInput = document.getElementById('fileInput');
+  var demoBtn = document.getElementById('demoBtn');
+
+  dropZone.addEventListener('dragover', function(e) { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', function() { dropZone.classList.remove('over'); });
+  dropZone.addEventListener('drop', function(e) {
+    e.preventDefault(); dropZone.classList.remove('over');
+    if (e.dataTransfer.files[0]) handleFile(e.dataTransfer.files[0]);
+  });
+  dropZone.addEventListener('click', function(e) {
+    if (e.target !== demoBtn) fileInput.click();
+  });
+  fileInput.addEventListener('change', function(e) {
+    if (e.target.files[0]) handleFile(e.target.files[0]);
+  });
+  demoBtn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    loadDemo();
+  });
+
+  // ---- サンプルデータ ----
+  function loadDemo() {
+    var csv = [
+      '注文番号,注文者名,注文時間,メールアドレス,IPアドレス',
+      'R-2024-001,田中 太郎,2024/06/01 14:22,taro.tanaka@gmail.com,203.0.113.10',
+      'R-2024-002,山田 花子,2024/06/01 14:23,hanako.yamada@yahoo.co.jp,203.0.113.10',
+      'R-2024-003,佐藤 次郎,2024/06/02 02:47,xk9p2m7q3b@hotmail.com,198.51.100.5',
+      'R-2024-004,鈴木 美咲,2024/06/02 11:05,misaki.suzuki@docomo.ne.jp,192.0.2.44',
+      'R-2024-005,李 偉,2024/06/02 03:12,lw20249xzq@example.cn,185.220.101.20',
+      'R-2024-006,김 민준,2024/06/03 01:58,kmj99b8xz@naver.com,175.45.176.3',
+      'R-2024-007,伊藤 健,2024/06/03 16:30,ken.ito@gmail.com,203.0.113.88',
+      'R-2024-008,中村 あゆみ,2024/06/03 19:44,ayumi.nakamura@icloud.com,198.51.100.99',
+      'R-2024-009,小林 達也,2024/06/03 16:30,tt3b8xz2qw@yahoo.co.jp,203.0.113.88',
+      'R-2024-010,加藤 由美,2024/06/04 09:15,yumi.kato@softbank.ne.jp,192.0.2.201',
+      'R-2024-011,渡辺 浩二,2024/06/04 00:33,koji.watanabe@gmail.com,203.0.113.55',
+      'R-2024-012,松本 さくら,2024/06/04 13:20,sakura.matsumoto@ezweb.ne.jp,192.0.2.100',
+      'R-2024-013,井上 隆,2024/06/05 04:05,2xkqp9mz7w@outlook.com,91.108.4.11',
+      'R-2024-014,木村 奈々,2024/06/05 15:50,nana.kimura@au.com,192.0.2.33',
+      'R-2024-015,林 大輔,2024/06/05 11:30,daisuke.hayashi@gmail.com,198.51.100.5'
+    ].join('\n');
+    processCSV(csv);
+    toast('サンプルデータを読み込みました');
+  }
+
+}); // DOMContentLoaded
+</script>
+</body>
+</html>
